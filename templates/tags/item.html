@@ -1,0 +1,22 @@
+<div class="d-flex align-items-center">
+  <div class="d-flex flex-column align-items-center me-3">
+    <button
+      class="btn"
+      hx-post="{{ url_for('vote_tag_up', item_id=tag.id) }}"
+      hx-target="#vote-tag-sum-{{ tag.id }}"
+      hx-swap="innerHTML"
+    >
+      ^
+    </button>
+    <span id="vote-tag-sum-{{ tag.id }}">{{ tag.vote_sum or 0 }}</span>
+    <button
+      class="btn"
+      hx-post="{{ url_for('vote_tag_down', item_id=tag.id) }}"
+      hx-target="#vote-tag-sum-{{ tag.id }}"
+      hx-swap="innerHTML"
+    >
+      v
+    </button>
+  </div>
+  <span>{{ tag.name }}</span>
+</div>

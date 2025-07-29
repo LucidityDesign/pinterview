@@ -1,16 +1,19 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from ..models import Question, Tag, QuestionPublic, QuestionVote
 from ..db.database import SessionDep
-from sqlmodel import func, select
+from sqlmodel import desc, func, select
 from sqlalchemy.orm import selectinload
 
+templates = Jinja2Templates(directory="templates")
 
 router = APIRouter(
     prefix="/questions",
     tags=["questions"],
 )
 
-@router.get("/{item_id}",  response_model=QuestionPublic)
+@router.get("/{item_id}",  response_class=HTMLResponse, name="question")
 def read_question(session: SessionDep, item_id: int):
     question = session.exec(
         select(Question)
@@ -24,9 +27,23 @@ def read_question(session: SessionDep, item_id: int):
     return question
 
 @router.get("/")
-def list_questions(session: SessionDep, skip: int = 0, limit: int = 5):
-    questions = session.exec(select(Question).offset(skip).limit(limit)).all()
-    return questions
+def list_questions(session: SessionDep,request: Request, skip: int = 0, limit: int = 5):
+    statement = (
+        select(Question, func.sum(QuestionVote.vote_value).label("vote_sum"))
+        .outerjoin(QuestionVote)
+        .group_by(Question.id)
+        .offset(skip)
+        .limit(limit)
+        .order_by(desc("vote_sum"))
+    )
+    results = session.exec(statement).all()
+    response = [QuestionPublic] * len(results)
+
+    for i, (q, vote_sum) in enumerate(results):
+        response[i] = QuestionPublic.from_question(q)
+        response[i].vote_sum = vote_sum if vote_sum is not None else 0
+
+    return templates.TemplateResponse("questions/list.html", {"questions": response, "request": request})
 
 @router.post("/")
 def create_question(session: SessionDep, question: Question):
@@ -55,17 +72,23 @@ def add_tag_to_question(session: SessionDep, item_id: int, tag_id: int):
     return question
 
 @router.post("/{item_id}/vote/up", status_code=201, response_model=QuestionPublic)
-def vote_question_up(session: SessionDep, item_id: int):
+def vote_question_up(session: SessionDep, request: Request, item_id: int):
 
     question = vote_question(session, item_id, 1)
 
-    return question
+    return templates.TemplateResponse("votes/item.html", {
+        "request": request,
+        "vote_sum": question.vote_sum
+    })
 
 @router.post("/{item_id}/vote/down", status_code=201, response_model=QuestionPublic)
-def vote_question_down(session: SessionDep, item_id: int):
+def vote_question_down(session: SessionDep, request: Request, item_id: int):
     question = vote_question(session, item_id, -1)
 
-    return question
+    return templates.TemplateResponse("votes/item.html", {
+        "request": request,
+        "vote_sum": question.vote_sum
+    })
 
 def vote_question(session: SessionDep, item_id: int, vote_value: int):
 

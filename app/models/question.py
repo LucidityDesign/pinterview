@@ -42,7 +42,7 @@ class QuestionPublic(SQLModel):
             text=question.text,
             created_by=question.created_by,
             tags=question.tags,
-            votes=question.votes,
+            # votes=question.votes,
             vote_sum=vote_sum
         )
 

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+  <head>
+    <meta charset="UTF-8" />
+    <title>{% block title %}My App{% endblock %}</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Halfmoon CSS -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/halfmoon@2.0.2/css/halfmoon.min.css"
+      rel="stylesheet"
+      integrity="sha256-RjeFzczeuZHCyS+Gvz+kleETzBF/o84ZRHukze/yv6o="
+      crossorigin="anonymous"
+    />
+
+    {% block head %}{% endblock %}
+  </head>
+  <body>
+    <div class="page-wrapper with-navbar">
+      <!-- Navbar -->
+      <nav
+        class="navbar navbar-expand-lg"
+        style="
+          background-color: var(--bs-content-bg);
+          border-bottom: var(--bs-border-width) solid
+            var(--bs-content-border-color);
+        "
+      >
+        <div class="container-fluid">
+          <a class="navbar-brand" href="#">
+            <img
+              src="..."
+              alt="Logo"
+              width="24"
+              height="24"
+              class="d-inline-block align-text-top"
+            />
+            Builder
+          </a>
+          <button
+            class="navbar-toggler"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#navbar-collapse-1"
+            aria-controls="navbar-collapse-1"
+            aria-expanded="false"
+            aria-label="Toggle navigation"
+          >
+            <span class="navbar-toggler-icon"></span>
+          </button>
+          <div class="collapse navbar-collapse" id="navbar-collapse-1">
+            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+              <li class="nav-item">
+                <a class="nav-link" href="/">Home</a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link active" aria-current="page" href="#"
+                  >Questions</a
+                >
+              </li>
+              <li class="nav-item">
+                <a class="nav-link disabled">Tags</a>
+              </li>
+            </ul>
+            <form class="d-flex" role="search">
+              <input
+                class="form-control me-2"
+                type="search"
+                placeholder="Search docs"
+                aria-label="Search"
+              />
+              <button class="btn btn-primary" type="submit">Search</button>
+            </form>
+          </div>
+        </div>
+      </nav>
+
+      <!-- Main Content -->
+      <div class="content-wrapper">
+        <div class="container mt-20">{% block content %}{% endblock %}</div>
+      </div>
+
+      <!-- Footer -->
+      <footer class="bg-light mt-20 p-10 text-center">
+        <small class="text-muted">&copy; 2025 - My FastAPI App</small>
+      </footer>
+    </div>
+
+    <!-- HTMX -->
+    <script
+      src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js"
+      integrity="sha384-Akqfrbj/HpNVo8k11SXBb6TlBWmXXlYQrCSqEWmyKJe+hDm3Z/B2WVG4smwBkRVm"
+      crossorigin="anonymous"
+    ></script>
+
+    {% block scripts %}{% endblock %}
+  </body>
+</html>
