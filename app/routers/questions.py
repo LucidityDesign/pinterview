@@ -14,7 +14,7 @@ router = APIRouter(
 )
 
 @router.get("/{item_id}",  response_class=HTMLResponse, name="question")
-def read_question(session: SessionDep, item_id: int):
+def read_question(session: SessionDep, request: Request, item_id: int):
     question = session.exec(
         select(Question)
         .where(Question.id == item_id)
@@ -24,7 +24,10 @@ def read_question(session: SessionDep, item_id: int):
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    return question
+    return templates.TemplateResponse("questions/index.html", {
+        "request": request,
+        "question": question
+    })
 
 @router.get("/")
 def list_questions(session: SessionDep,request: Request, skip: int = 0, limit: int = 5):

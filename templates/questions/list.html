@@ -1,30 +1,5 @@
-<ul>
+<ul class="list-unstyled">
   {% for question in questions %}
-  <li>
-    <button
-      class="btn"
-      hx-post="{{ url_for('vote_question_up', item_id=question.id) }}"
-      hx-target="#vote-sum-{{ question.id }}"
-      hx-swap="innerHTML"
-    >
-      Vote Up
-    </button>
-    <span id="vote-sum-{{ question.id }}">{{ question.vote_sum }}</span>
-    <button
-      class="btn"
-      hx-post="{{ url_for('vote_question_down', item_id=question.id) }}"
-      hx-target="#vote-sum-{{ question.id }}"
-      hx-swap="innerHTML"
-    >
-      Vote Down
-    </button>
-    <a href="{{ url_for('question', item_id=question.id) }}"
-      >{{ question.text }}</a
-    >
-    <p>
-      Tags: {% for tag in question.tags %} {% include "tags/item.html" %} {%
-      endfor %}
-    </p>
-  </li>
+  <li class="mb-4">{% include "questions/item.html" %}</li>
   {% endfor %}
 </ul>

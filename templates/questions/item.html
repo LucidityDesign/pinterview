@@ -1,0 +1,32 @@
+<div>
+  <div class="d-flex align-items-center">
+    <div class="d-inline-flex align-items-center flex-column">
+      <button
+        class="btn btn-primary btn-sm"
+        hx-post="{{ url_for('vote_question_up', item_id=question.id) }}"
+        hx-target="#vote-sum-{{ question.id }}"
+        hx-swap="innerHTML"
+      >
+        Vote Up
+      </button>
+      <span id="vote-sum-{{ question.id }}">{{ question.vote_sum }}</span>
+      <button
+        class="btn btn-primary btn-sm"
+        hx-post="{{ url_for('vote_question_down', item_id=question.id) }}"
+        hx-target="#vote-sum-{{ question.id }}"
+        hx-swap="innerHTML"
+      >
+        Vote Down
+      </button>
+    </div>
+    <a
+      href="{{ url_for('question', item_id=question.id) }}"
+      class="h3 text-decoration-none"
+      >{{ question.text }}</a
+    >
+  </div>
+  <p>
+    Tags: {% for tag in question.tags %} {% include "tags/item.html" %} {%
+    endfor %}
+  </p>
+</div>

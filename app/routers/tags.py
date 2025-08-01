@@ -1,8 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
 from ..models import Tag, TagPublic, TagVote
 from ..db.database import SessionDep
 from sqlmodel import func, select
 from sqlalchemy.orm import selectinload
+
+templates = Jinja2Templates(directory="templates")
 
 router = APIRouter(
     prefix="/tags",
@@ -31,18 +35,24 @@ def create_tag(tag: Tag, session: SessionDep):
     return tag
 
 
-@router.post("/{item_id}/vote/up", status_code=201, response_model=TagPublic)
-def vote_tag_up(session: SessionDep, item_id: int):
+@router.post("/{item_id}/vote/up", response_class=HTMLResponse)
+def vote_tag_up(session: SessionDep, request: Request, item_id: int):
 
     tag = vote_tag(session, item_id, 1)
 
-    return tag
+    return templates.TemplateResponse("votes/item.html", {
+        "request": request,
+        "vote_sum": tag.vote_sum
+    })
 
-@router.post("/{item_id}/vote/down", status_code=201, response_model=TagPublic)
-def vote_tag_down(session: SessionDep, item_id: int):
+@router.post("/{item_id}/vote/down", response_class=HTMLResponse)
+def vote_tag_down(session: SessionDep, request: Request, item_id: int):
     tag = vote_tag(session, item_id, -1)
 
-    return tag
+    return templates.TemplateResponse("votes/item.html", {
+        "request": request,
+        "vote_sum": tag.vote_sum
+    })
 
 def vote_tag(session: SessionDep, item_id: int, vote_value: int):
 
