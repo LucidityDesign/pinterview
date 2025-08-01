@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, HTTPException, Request, Form
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 from ..models import Question, Tag, QuestionPublic, QuestionVote
 from ..db.database import SessionDep
 from sqlmodel import desc, func, select
 from sqlalchemy.orm import selectinload
+from typing import Annotated
 
 templates = Jinja2Templates(directory="templates")
 
@@ -12,6 +13,10 @@ router = APIRouter(
     prefix="/questions",
     tags=["questions"],
 )
+
+@router.get("/add" , response_class=HTMLResponse)
+def add_question_form(request: Request):
+    return templates.TemplateResponse("questions/add.html", {"request": request})
 
 @router.get("/{item_id}",  response_class=HTMLResponse, name="question")
 def read_question(session: SessionDep, request: Request, item_id: int):
@@ -48,12 +53,14 @@ def list_questions(session: SessionDep,request: Request, skip: int = 0, limit: i
 
     return templates.TemplateResponse("questions/list.html", {"questions": response, "request": request})
 
-@router.post("/")
-def create_question(session: SessionDep, question: Question):
+@router.post("/", response_class=RedirectResponse)
+def create_question(session: SessionDep, text: Annotated[str, Form()]):
+    question = Question(text=text)
     session.add(question)
     session.commit()
     session.refresh(question)
-    return question
+    # redirect to the newly created question
+    return RedirectResponse(url=f"/questions/{question.id}", status_code=303)
 
 @router.post("/{item_id}/tags/{tag_id}", status_code=201, response_model=QuestionPublic)
 def add_tag_to_question(session: SessionDep, item_id: int, tag_id: int):
