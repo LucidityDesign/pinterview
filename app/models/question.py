@@ -22,28 +22,16 @@ class QuestionPublic(SQLModel):
 
     vote_sum: int = 0
 
-    # @classmethod
-    # def from_question(cls, question: Question):
-    #     vote_sum = sum(vote.vote_value for vote in question.votes)
-    #     return cls(
-    #         id=question.id,
-    #         text=question.text,
-    #         created_by=question.created_by,
-    #         tags=question.tags,
-    #         votes=question.votes,
-    #         vote_sum=vote_sum
-    #     )
-
     @classmethod
     def from_question(cls, question: Question):
-        vote_sum = sum(vote.vote_value for vote in question.votes)
+        # vote_sum = sum(vote.vote_value for vote in question.votes)
         return cls(
             id=question.id,
             text=question.text,
             created_by=question.created_by,
             tags=question.tags,
             # votes=question.votes,
-            vote_sum=vote_sum
+            # vote_sum=vote_sum
         )
 
     class Config:
