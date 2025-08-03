@@ -1,8 +1,10 @@
-<div>
+<div
+  class="border-t border-neutral-50 p-6 mb-6 rounded-4xl shadow-xl shadow-slate-500/10 bg-slate-50/20"
+>
   <div class="flex items-center">
     <div class="inline-flex items-center flex-col mr-4">
       <button
-        class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
         hx-post="{{ url_for('vote_question_up', item_id=question.id) }}"
         hx-target="#vote-sum-{{ question.id }}"
         hx-swap="innerHTML"
@@ -14,7 +16,7 @@
         >{{ question.vote_sum }}</span
       >
       <button
-        class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
         hx-post="{{ url_for('vote_question_down', item_id=question.id) }}"
         hx-target="#vote-sum-{{ question.id }}"
         hx-swap="innerHTML"
@@ -29,8 +31,7 @@
       >{{ question.text }}</a
     >
   </div>
-  <p class="mt-2 text-gray-600">
-    Tags: {% for tag in question.tags %} {% include "tags/item.html" %} {%
-    endfor %}
+  <p class="mt-2 empty:hidden">
+    {%- for tag in question.tags %} {% include "tags/item.html" %} {% endfor -%}
   </p>
 </div>
