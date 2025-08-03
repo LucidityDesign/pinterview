@@ -18,10 +18,10 @@ templates = Jinja2Templates(directory="templates")
 def render_front_page(request: Request, session: SessionDep):
     # Get questions to display on homepage
     statement = (
-        select(Question, func.sum(QuestionVote.vote_value).label("vote_sum"))
+        select(Question, func.coalesce(func.sum(QuestionVote.vote_value), 0).label("vote_sum"))
         .outerjoin(QuestionVote)
         .group_by(Question.id)
-        .limit(5)
+        .limit(15)
         .order_by(desc("vote_sum"))
     )
     results = session.exec(statement).all()
