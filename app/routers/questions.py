@@ -20,18 +20,28 @@ def add_question_form(request: Request):
 
 @router.get("/{item_id}",  response_class=HTMLResponse, name="question")
 def read_question(session: SessionDep, request: Request, item_id: int):
-    question = session.exec(
-        select(Question)
+
+    statement = (
+        select(Question, func.sum(QuestionVote.vote_value).label("vote_sum"))
         .where(Question.id == item_id)
-        .options(selectinload(Question.tags))
-    ).first()
+        .outerjoin(QuestionVote)
+        .group_by(Question.id)
+        .order_by(desc("vote_sum"))
+        .limit(1)
+    )
+    result = session.exec(statement).first()
+
+    question, vote_sum = result if result else (None, 0)
 
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
+    question_public = QuestionPublic.from_question(question)
+    question_public.vote_sum = vote_sum if vote_sum is not None else 0
+
     return templates.TemplateResponse("questions/index.html", {
         "request": request,
-        "question": question
+        "question": question_public
     })
 
 @router.get("/")
