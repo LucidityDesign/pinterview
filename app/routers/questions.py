@@ -18,7 +18,7 @@ router = APIRouter(
 )
 
 @router.get("/add" , response_class=HTMLResponse)
-def add_question_form(request: Request):
+def add_question_form(request: Request, _: User = Depends(get_current_active_user)):
     return templates.TemplateResponse("questions/add.html", {"request": request})
 
 @router.get("/{item_id}",  response_class=HTMLResponse, name="question")
@@ -28,6 +28,7 @@ def read_question(session: SessionDep, request: Request, item_id: int):
         select(Question, func.sum(QuestionVote.vote_value).label("vote_sum"))
         .where(Question.id == item_id)
         .outerjoin(QuestionVote)
+        .options(selectinload(Question.user), selectinload(Question.tags))
         .group_by(Question.id)
         .order_by(desc("vote_sum"))
         .limit(1)
@@ -67,8 +68,8 @@ def list_questions(session: SessionDep,request: Request, skip: int = 0, limit: i
     return templates.TemplateResponse("questions/list.html", {"questions": response, "request": request})
 
 @router.post("/", response_class=RedirectResponse)
-def create_question(session: SessionDep, text: Annotated[str, Form()]):
-    question = Question(text=text)
+def create_question(session: SessionDep, text: Annotated[str, Form()], current_user: User = Depends(get_current_active_user)):
+    question = Question(text=text, created_by=current_user.id)
     session.add(question)
     session.commit()
     session.refresh(question)

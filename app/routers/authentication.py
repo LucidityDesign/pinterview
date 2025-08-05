@@ -142,7 +142,7 @@ async def login_for_access_token(
 
 @router.get("/users/register", response_class=HTMLResponse)
 async def get_register_page(request: Request):
-    return templates.TemplateResponse("users/register.html", {"request": request})
+    return templates.TemplateResponse("users/register.html", {"request": request, "form_data": {}})
 
 @router.post("/users/register", response_class=HTMLResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(

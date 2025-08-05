@@ -9,6 +9,8 @@ class User(SQLModel, table=True):
     username: str = Field(index=True, unique=True)
     hashed_password: str
 
+    # Relationships
+    questions: List["Question"] = Relationship(back_populates="user")
     question_votes: List["QuestionVote"] = Relationship(back_populates="user")
     tag_votes: List["TagVote"] = Relationship(back_populates="user")
 

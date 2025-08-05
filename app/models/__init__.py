@@ -11,6 +11,7 @@ Question.model_rebuild()
 QuestionPublic.model_rebuild()
 Tag.model_rebuild()
 TagPublic.model_rebuild()
+User.model_rebuild()
 
 __all__ = [
     "User",

@@ -10,6 +10,8 @@ class Question(SQLModel, table=True):
     text: str
     created_by: Optional[int] = Field(default=None, foreign_key="user.id")
 
+    # Relationships
+    user: Optional["User"] = Relationship(back_populates="questions")
     tags: List["Tag"] = Relationship(back_populates="questions", link_model=QuestionTagLink)
     votes: List["QuestionVote"] = Relationship(back_populates="question")
 
@@ -17,6 +19,7 @@ class QuestionPublic(SQLModel):
     id: int
     text: str
     created_by: Optional[int] = None
+    user: Optional["UserPublic"] = None
     tags: List["Tag"] = []
     votes: List["QuestionVote"] = []
 
@@ -29,6 +32,7 @@ class QuestionPublic(SQLModel):
             id=question.id,
             text=question.text,
             created_by=question.created_by,
+            user=question.user,
             tags=question.tags,
             # votes=question.votes,
             # vote_sum=vote_sum
