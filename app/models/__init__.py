@@ -1,4 +1,4 @@
-from .user import User
+from .user import User, UserPublic, UserCreate, UserUpdate
 from .question import Question, QuestionPublic
 from .tag import Tag, TagPublic
 from .vote import QuestionVote, TagVote
