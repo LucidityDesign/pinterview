@@ -5,19 +5,21 @@
     <button
       class="text-gray-500 hover:text-blue-600 text-sm"
       hx-post="{{ url_for('vote_tag_up', item_id=tag.id) }}"
-      hx-target="#vote-tag-sum-{{ tag.id }}"
+      hx-target="#vote-tag-sum-{{ question.id }}-{{ tag.id }}"
       hx-swap="innerHTML"
       title="Vote Up"
     >
       ▲
     </button>
-    <span id="vote-tag-sum-{{ tag.id }}" class="text-xs font-medium"
+    <span
+      id="vote-tag-sum-{{ question.id }}-{{ tag.id }}"
+      class="text-xs font-medium"
       >{{ tag.vote_sum or 0 }}</span
     >
     <button
       class="text-gray-500 hover:text-blue-600 text-sm"
       hx-post="{{ url_for('vote_tag_down', item_id=tag.id) }}"
-      hx-target="#vote-tag-sum-{{ tag.id }}"
+      hx-target="#vote-tag-sum-{{ question.id }}-{{ tag.id }}"
       hx-swap="innerHTML"
       title="Vote Down"
     >

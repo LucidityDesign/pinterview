@@ -31,9 +31,9 @@
       >{{ question.text }}</a
     >
   </div>
-  <p class="mt-2 empty:hidden">
+  <div id="tag-list-{{ question.id }}" class="mt-2 empty:hidden">
     {%- for tag in question.tags %} {% include "tags/item.html" %} {% endfor -%}
-  </p>
+  </div>
   <div class="text-sm text-gray-600 mt-2">
     {% if question.user %} Asked by
     <span class="font-medium">{{ question.user.username }}</span> {% else %}
