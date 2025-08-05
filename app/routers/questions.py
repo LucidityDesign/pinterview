@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from app.models.link_tables import QuestionTagVote
 from app.models.user import User
 from app.routers.authentication import get_current_active_user
 from ..models import Question, Tag, QuestionPublic, QuestionVote
@@ -121,6 +122,24 @@ def vote_question(session: SessionDep, item_id: int, vote_value: int, current_us
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
+    if has_user_voted(question, current_user):
+        # remove existing vote if it exists
+        existing_vote = session.exec(
+            select(QuestionVote)
+            .where(QuestionVote.question_id == item_id, QuestionVote.user_id == current_user.id)
+        ).first()
+        if existing_vote:
+            session.delete(existing_vote)
+            session.commit()
+            # Recalculate vote sum after deletion
+            vote_sum = session.exec(
+                select(func.sum(QuestionVote.vote_value))
+                .where(QuestionVote.question_id == item_id)
+            ).first() or 0
+            questionPublic = QuestionPublic.from_question(question)
+            questionPublic.vote_sum = vote_sum or 0
+            return questionPublic
+
     vote = QuestionVote(question_id=question.id, vote_value=vote_value, user_id=current_user.id)
 
     session.add(vote)
@@ -137,3 +156,104 @@ def vote_question(session: SessionDep, item_id: int, vote_value: int, current_us
 
     return questionPublic
 
+
+# Question-tag specific voting endpoints
+@router.post("/{question_id}/tag/{tag_id}/vote/up", response_class=HTMLResponse)
+def vote_question_tag_up(
+    session: SessionDep,
+    request: Request,
+    question_id: int,
+    tag_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
+    vote_sum = vote_question_tag(session, question_id, tag_id, 1, current_user)
+    return templates.TemplateResponse("votes/item.html", {
+        "request": request,
+        "vote_sum": vote_sum
+    })
+
+@router.post("/{question_id}/tag/{tag_id}/vote/down", response_class=HTMLResponse)
+def vote_question_tag_down(
+    session: SessionDep,
+    request: Request,
+    question_id: int,
+    tag_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
+    vote_sum = vote_question_tag(session, question_id, tag_id, -1, current_user)
+    return templates.TemplateResponse("votes/item.html", {
+        "request": request,
+        "vote_sum": vote_sum
+    })
+
+def vote_question_tag(
+    session: SessionDep,
+    question_id: int,
+    tag_id: int,
+    vote_value: int,
+    current_user: User
+):
+    # Verify question and tag exist
+    question = session.get(Question, question_id)
+    tag = session.get(Tag, tag_id)
+
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
+    if not tag:
+        raise HTTPException(status_code=404, detail="Tag not found")
+
+    if has_user_voted(tag, current_user):
+        # remove existing vote if it exists
+        existing_vote = session.exec(
+            select(QuestionTagVote)
+            .where(
+                QuestionTagVote.question_id == question_id,
+                QuestionTagVote.tag_id == tag_id,
+                QuestionTagVote.user_id == current_user.id
+            )
+        ).first()
+        if existing_vote:
+            session.delete(existing_vote)
+            session.commit()
+            # Recalculate vote sum after deletion
+            vote_sum = session.exec(
+                select(func.sum(QuestionTagVote.vote_value))
+                .where(
+                    QuestionTagVote.question_id == question_id,
+                    QuestionTagVote.tag_id == tag_id
+                )
+            ).first() or 0
+            return vote_sum
+
+    # Create vote on this specific question-tag combination
+    vote = QuestionTagVote(
+        user_id=current_user.id,
+        question_id=question_id,
+        tag_id=tag_id,
+        vote_value=vote_value
+    )
+
+    session.add(vote)
+    session.commit()
+
+    # Calculate vote sum for this specific question-tag combination
+    vote_sum = session.exec(
+        select(func.sum(QuestionTagVote.vote_value))
+        .where(
+            QuestionTagVote.question_id == question_id,
+            QuestionTagVote.tag_id == tag_id
+        )
+    ).first() or 0
+
+    return vote_sum
+
+
+def has_user_voted(resource: Question | Tag, user: User) -> bool:
+    """
+    Check if the user has voted on the given resource (Question or Tag).
+    """
+    if isinstance(resource, Question):
+        return any(vote.user_id == user.id for vote in resource.votes)
+    elif isinstance(resource, Tag):
+        return any(vote.user_id == user.id for vote in resource.question_tag_votes)
+    return False
