@@ -1,3 +1,4 @@
+from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Form
 from pydantic import BaseModel
@@ -204,6 +205,17 @@ async def login_user(
         samesite="lax",         # CSRF protection
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60  # Cookie expires with token
     )
+    referer = request.headers.get("Referer")
+    if referer:
+        # get search params from referer URL
+        parsed_url = urlparse(referer)
+        search_params = parse_qs(parsed_url.query)
+        if "next" in search_params:
+            next_url = search_params["next"][0]
+            response.headers["HX-Redirect"] = next_url
+            response.headers["Location"] = next_url
+            response.status_code = status.HTTP_302_FOUND
+
     return response
 
 @router.get("/users/me/", response_model=UserPublic)

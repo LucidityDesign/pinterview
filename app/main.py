@@ -51,9 +51,16 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(401)
 async def unauthorized_exception_handler(request: Request, exc: HTTPException):
-    # TODO: Check if a redirect is always the right solution
+
+    status_code = status.HTTP_302_FOUND
+    url = "/auth/users/login?next=" + request.url.path
+
     # redirect to login page
-    return RedirectResponse(url="/auth/users/login", status_code=status.HTTP_302_FOUND)
+    if request.headers.get("HX-Request") == "true":
+        url = "/auth/users/login?next=" + request.headers.get("Referer") or request.url.path
+        status_code = status.HTTP_200_OK
+
+    return RedirectResponse(url=url, status_code=status_code, headers={"HX-Redirect": url})
 
 
 if __name__ == "__main__":
