@@ -25,14 +25,14 @@ def render_front_page(request: Request, session: SessionDep):
         .order_by(desc("vote_sum"))
     )
     results = session.exec(statement).all()
-    response = []
+    questions = []
 
     for q, vote_sum in results:
         question_public = QuestionPublic.from_question(q)
         question_public.vote_sum = vote_sum if vote_sum is not None else 0
-        response.append(question_public)
+        questions.append(question_public)
 
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "questions": response
+        "questions": questions
     })
