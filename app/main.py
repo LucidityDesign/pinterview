@@ -1,9 +1,9 @@
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 
 from fastapi import FastAPI, status
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 import uvicorn
 # from fastapi.staticfiles import StaticFiles
@@ -48,6 +48,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
         )
     return HTMLResponse("Invalid input", status_code=422)
+
+@app.exception_handler(401)
+async def unauthorized_exception_handler(request: Request, exc: HTTPException):
+    # TODO: Check if a redirect is always the right solution
+    # redirect to login page
+    return RedirectResponse(url="/auth/users/login", status_code=status.HTTP_302_FOUND)
+
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
