@@ -1,7 +1,7 @@
 from typing import Optional, List
 from sqlmodel import SQLModel, Field, Relationship
 
-from .vote import QuestionVote, TagVote
+from .vote import QuestionVote
 
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -12,7 +12,7 @@ class User(SQLModel, table=True):
     # Relationships
     questions: List["Question"] = Relationship(back_populates="user")
     question_votes: List["QuestionVote"] = Relationship(back_populates="user")
-    tag_votes: List["TagVote"] = Relationship(back_populates="user")
+    question_tag_votes: List["QuestionTagVote"] = Relationship(back_populates="user")
 
 class UserPublic(SQLModel):
     id: int

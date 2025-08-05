@@ -4,7 +4,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.models.user import User
 from app.routers.authentication import get_current_active_user
-from ..models import Tag, TagPublic, TagVote, Question
+from ..models import Tag, TagPublic, Question, QuestionTagVote
 from ..db.database import SessionDep
 from sqlmodel import func, select
 from sqlalchemy.orm import selectinload
@@ -68,45 +68,81 @@ def create_tag(session: SessionDep, request: Request, name: str = Form(...), que
             "tag": TagPublic.from_tag(tag)
         })
 
-
-@router.post("/{item_id}/vote/up", response_class=HTMLResponse)
-def vote_tag_up(session: SessionDep, request: Request, item_id: int, current_user: User = Depends(get_current_active_user)):
-
-    tag = vote_tag(session, item_id, 1, current_user)
-
+# Question-tag specific voting endpoints
+@router.post("/question/{question_id}/tag/{tag_id}/vote/up", response_class=HTMLResponse)
+def vote_question_tag_up(
+    session: SessionDep,
+    request: Request,
+    question_id: int,
+    tag_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
+    vote_sum = vote_question_tag(session, question_id, tag_id, 1, current_user)
     return templates.TemplateResponse("votes/item.html", {
         "request": request,
-        "vote_sum": tag.vote_sum
+        "vote_sum": vote_sum
     })
-
-@router.post("/{item_id}/vote/down", response_class=HTMLResponse)
-def vote_tag_down(session: SessionDep, request: Request, item_id: int, current_user: User = Depends(get_current_active_user)):
-    tag = vote_tag(session, item_id, -1, current_user)
-
+def vote_question_tag_up(
+    session: SessionDep,
+    request: Request,
+    question_id: int,
+    tag_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
+    vote_sum = vote_question_tag(session, question_id, tag_id, 1, current_user)
     return templates.TemplateResponse("votes/item.html", {
         "request": request,
-        "vote_sum": tag.vote_sum
+        "vote_sum": vote_sum
     })
 
-def vote_tag(session: SessionDep, item_id: int, vote_value: int, current_user: User = Depends(get_current_active_user)):
+@router.post("/question/{question_id}/tag/{tag_id}/vote/down", response_class=HTMLResponse)
+def vote_question_tag_down(
+    session: SessionDep,
+    request: Request,
+    question_id: int,
+    tag_id: int,
+    current_user: User = Depends(get_current_active_user)
+):
+    vote_sum = vote_question_tag(session, question_id, tag_id, -1, current_user)
+    return templates.TemplateResponse("votes/item.html", {
+        "request": request,
+        "vote_sum": vote_sum
+    })
 
-    tag = session.get(Tag, item_id)
+def vote_question_tag(
+    session: SessionDep,
+    question_id: int,
+    tag_id: int,
+    vote_value: int,
+    current_user: User
+):
+    # Verify question and tag exist
+    question = session.get(Question, question_id)
+    tag = session.get(Tag, tag_id)
 
+    if not question:
+        raise HTTPException(status_code=404, detail="Question not found")
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
 
-    vote = TagVote(tag_id=tag.id, vote_value=vote_value, user_id=current_user.id)
+    # Create vote on this specific question-tag combination
+    vote = QuestionTagVote(
+        user_id=current_user.id,
+        question_id=question_id,
+        tag_id=tag_id,
+        vote_value=vote_value
+    )
 
     session.add(vote)
     session.commit()
-    session.refresh(tag)
 
+    # Calculate vote sum for this specific question-tag combination
     vote_sum = session.exec(
-        select(func.sum(TagVote.vote_value))
-        .where(TagVote.tag_id == item_id)
+        select(func.sum(QuestionTagVote.vote_value))
+        .where(
+            QuestionTagVote.question_id == question_id,
+            QuestionTagVote.tag_id == tag_id
+        )
     ).first() or 0
 
-    tagPublic = TagPublic.from_tag(tag)
-    tagPublic.vote_sum = vote_sum or 0
-
-    return tagPublic
+    return vote_sum

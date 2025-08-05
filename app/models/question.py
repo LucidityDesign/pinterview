@@ -14,6 +14,7 @@ class Question(SQLModel, table=True):
     user: Optional["User"] = Relationship(back_populates="questions")
     tags: List["Tag"] = Relationship(back_populates="questions", link_model=QuestionTagLink)
     votes: List["QuestionVote"] = Relationship(back_populates="question")
+    tag_votes: List["QuestionTagVote"] = Relationship(back_populates="question")
 
 class QuestionPublic(SQLModel):
     id: int

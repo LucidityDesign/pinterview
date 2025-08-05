@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends, FastAPI, HTTPException, Query
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
-from app.models import User, Question, Tag, QuestionVote, TagVote
+from app.models import User, Question, Tag, QuestionVote
 
 # class Hero(SQLModel, table=True):
 #     id: int | None = Field(default=None, primary_key=True)

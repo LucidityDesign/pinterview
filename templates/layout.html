@@ -52,12 +52,28 @@
                   <a class="text-blue-600 font-medium" href="/">Home</a>
                 </li>
                 <li>
-                  <a class="text-gray-600 hover:text-gray-900" href="#"
-                    >Questions</a
+                  <a
+                    class="text-gray-600 hover:text-gray-900"
+                    href="{{ url_for('add_question_form') }}"
+                    >Create Questions</a
                   >
                 </li>
                 <li>
                   <a class="text-gray-600 hover:text-gray-900" href="#">Tags</a>
+                </li>
+                <li>
+                  <a
+                    class="text-gray-600 hover:text-gray-900"
+                    href="{{ url_for('get_register_page')}}"
+                    >Register</a
+                  >
+                </li>
+                <li>
+                  <a
+                    class="text-gray-600 hover:text-gray-900"
+                    href="{{ url_for('get_login_page')}}"
+                    >Login</a
+                  >
                 </li>
               </ul>
               <form class="flex" role="search">
