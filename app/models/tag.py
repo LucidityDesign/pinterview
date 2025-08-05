@@ -13,7 +13,7 @@ class Tag(SQLModel, table=True):
 class TagPublic(SQLModel):
     id: int
     name: str
-    questions: List["QuestionPublic"] = []
+    # questions: List["QuestionPublic"] = []
 
     # For displaying in templates - vote sum for a specific question context
     vote_sum: int = 0
@@ -36,7 +36,7 @@ class TagPublic(SQLModel):
         return cls(
             id=tag.id,
             name=tag.name,
-            questions=tag.questions,
+            # questions=tag.questions,
             vote_sum=vote_sum
         )
 
