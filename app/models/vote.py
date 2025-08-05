@@ -4,7 +4,7 @@ from datetime import datetime
 
 class QuestionVote(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", nullable=True)
+    user_id: int = Field(foreign_key="user.id", nullable=False)
     question_id: int = Field(foreign_key="question.id")
     vote_value: int
     created_at: datetime = Field(default_factory=datetime.utcnow)
@@ -15,7 +15,7 @@ class QuestionVote(SQLModel, table=True):
 
 class TagVote(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
-    user_id: int = Field(foreign_key="user.id", nullable=True)
+    user_id: int = Field(foreign_key="user.id", nullable=False)
     tag_id: int = Field(foreign_key="tag.id")
     vote_value: int
     created_at: datetime = Field(default_factory=datetime.utcnow)

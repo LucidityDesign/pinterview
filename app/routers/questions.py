@@ -1,6 +1,9 @@
-from fastapi import APIRouter, HTTPException, Request, Form
+from fastapi import APIRouter, Depends, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
+
+from app.models.user import User
+from app.routers.authentication import get_current_active_user
 from ..models import Question, Tag, QuestionPublic, QuestionVote
 from ..db.database import SessionDep
 from sqlmodel import desc, func, select
@@ -92,9 +95,9 @@ def add_tag_to_question(session: SessionDep, item_id: int, tag_id: int):
     return question
 
 @router.post("/{item_id}/vote/up", status_code=201, response_model=QuestionPublic)
-def vote_question_up(session: SessionDep, request: Request, item_id: int):
+def vote_question_up(session: SessionDep, request: Request, item_id: int, current_user: User = Depends(get_current_active_user)):
 
-    question = vote_question(session, item_id, 1)
+    question = vote_question(session, item_id, 1, current_user)
 
     return templates.TemplateResponse("votes/item.html", {
         "request": request,
@@ -102,22 +105,22 @@ def vote_question_up(session: SessionDep, request: Request, item_id: int):
     })
 
 @router.post("/{item_id}/vote/down", status_code=201, response_model=QuestionPublic)
-def vote_question_down(session: SessionDep, request: Request, item_id: int):
-    question = vote_question(session, item_id, -1)
+def vote_question_down(session: SessionDep, request: Request, item_id: int, current_user: User = Depends(get_current_active_user)):
+    question = vote_question(session, item_id, -1, current_user)
 
     return templates.TemplateResponse("votes/item.html", {
         "request": request,
         "vote_sum": question.vote_sum
     })
 
-def vote_question(session: SessionDep, item_id: int, vote_value: int):
+def vote_question(session: SessionDep, item_id: int, vote_value: int, current_user: User = Depends(get_current_active_user)):
 
     question = session.get(Question, item_id)
 
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    vote = QuestionVote(question_id=question.id, vote_value=vote_value)
+    vote = QuestionVote(question_id=question.id, vote_value=vote_value, user_id=current_user.id)
 
     session.add(vote)
     session.commit()

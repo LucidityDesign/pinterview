@@ -17,6 +17,17 @@ from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import Annotated
 from passlib.context import CryptContext
 
+# Custom OAuth2 scheme that checks cookies instead of Authorization header
+class OAuth2PasswordBearerWithCookie(OAuth2PasswordBearer):
+    async def __call__(self, request: Request) -> str | None:
+        # First try to get token from cookie
+        token = request.cookies.get("access_token")
+        if token:
+            return token
+
+        # Fall back to Authorization header for API endpoints
+        return await super().__call__(request)
+
 # to get a string like this run:
 # openssl rand -hex 32
 SECRET_KEY = "b05d8a3bb23dbe54ff0cb6b2fbfb7f6ce783d0fd7a12673c26a07365e44b12a2"
@@ -35,7 +46,7 @@ class TokenData(BaseModel):
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
+oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="auth/token")
 
 app = FastAPI()
 router = APIRouter(
@@ -83,6 +94,11 @@ async def get_current_user(session: SessionDep, token: Annotated[str, Depends(oa
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
+
+    # Handle case where no token is provided (optional authentication)
+    if not token:
+        return None
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
@@ -180,7 +196,14 @@ async def login_user(
     )
 
     response = templates.TemplateResponse("users/login.html", {"request": request, "success": "Login successful!", "form_data": form_data}, status_code=status.HTTP_200_OK)
-    response.set_cookie(key="access_token", value=access_token, httponly=True)
+    response.set_cookie(
+        key="access_token",
+        value=access_token,
+        httponly=True,          # Prevents JavaScript access (XSS protection)
+        secure=True,            # Only send over HTTPS in production
+        samesite="lax",         # CSRF protection
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60  # Cookie expires with token
+    )
     return response
 
 @router.get("/users/me/", response_model=UserPublic)
@@ -195,3 +218,12 @@ async def read_own_items(
     current_user: Annotated[User, Depends(get_current_active_user)],
 ):
     return [{"item_id": "Foo", "owner": current_user.username}]
+
+@router.post("/logout", response_class=HTMLResponse)
+async def logout(request: Request):
+    response = templates.TemplateResponse("users/login.html", {
+        "request": request,
+        "success": "Logged out successfully!"
+    })
+    response.delete_cookie(key="access_token")
+    return response
