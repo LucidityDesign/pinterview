@@ -1,13 +1,13 @@
 from urllib.parse import urlparse, parse_qs
 from datetime import datetime, timedelta, timezone
-from fastapi import APIRouter, Form
+from fastapi import APIRouter, Form, Header
 from pydantic import BaseModel
 from sqlmodel import or_, select
 
 from app.db.database import SessionDep
 from app.models.user import UserPublic
 from ..models import User
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi import FastAPI, Request
 from fastapi import Depends, FastAPI, HTTPException, status
 import jwt
@@ -33,11 +33,14 @@ class OAuth2PasswordBearerWithCookie(OAuth2PasswordBearer):
 # openssl rand -hex 32
 SECRET_KEY = "b05d8a3bb23dbe54ff0cb6b2fbfb7f6ce783d0fd7a12673c26a07365e44b12a2"
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 15
+REFRESH_TOKEN_EXPIRE_DAYS = 7
+
 templates = Jinja2Templates(directory="templates")
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
 
 
@@ -49,7 +52,6 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="auth/token", auto_error=False)
 
-app = FastAPI()
 router = APIRouter(
     tags=["auth"],
     prefix="/auth",
@@ -77,16 +79,23 @@ def authenticate_user(session: SessionDep, username: str, email: str, password: 
         return False
     return user
 
-
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
+def create_token(data: dict, expires_delta: timedelta):
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.now(timezone.utc) + expires_delta
-    else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+    expire = datetime.now(timezone.utc) + expires_delta
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def create_token_pair(user_id: int):
+    access_token = create_token(
+        data={"sub": str(user_id)},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES),
+    )
+    refresh_token = create_token(
+        data={"sub": str(user_id), "type": "refresh"},
+        expires_delta=timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+    )
+    return access_token, refresh_token
 
 
 async def get_current_user(session: SessionDep, token: Annotated[str, Depends(oauth2_scheme)]):
@@ -143,12 +152,42 @@ async def login_for_access_token(
             detail="Incorrect username or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
-    return Token(access_token=access_token, token_type="bearer")
+    access_token, refresh_token = create_token_pair(user.username)
+    return Token(access_token=access_token, refresh_token=refresh_token, token_type="bearer")
 
+@router.post("/token/refresh")
+def refresh_token(request: Request):
+    refresh_token = request.cookies.get("refresh_token")
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token not provided")
+    if refresh_token.startswith("Bearer "):
+        refresh_token = refresh_token[7:]
+
+    try:
+        payload = jwt.decode(refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        user_id = payload.get("sub")
+    except jwt.JWTError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
+
+    # Optionally check if token is blacklisted or revoked here
+
+    new_access_token = create_token(
+        data={"sub": user_id},
+        expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
+    response = JSONResponse(status_code=200, content={"access_token": new_access_token, "token_type": "bearer"})
+    response.set_cookie(
+        key="access_token",
+        value=new_access_token,
+        httponly=True,          # Prevents JavaScript access (XSS protection)
+        secure=True,            # Only send over HTTPS in production
+        samesite="lax",         # CSRF protection
+        max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60  # Cookie expires with token
+    )
+
+    return response
 
 @router.get("/users/register", response_class=HTMLResponse)
 async def get_register_page(request: Request):
@@ -200,10 +239,7 @@ async def login_user(
     if not user:
         return templates.TemplateResponse("users/login.html", {"request": request, "error": "Invalid username or password", "form_data": form_data}, status_code=status.HTTP_401_UNAUTHORIZED)
 
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": user.username}, expires_delta=access_token_expires
-    )
+    access_token, refresh_token = create_token_pair(user.username)
 
     response = templates.TemplateResponse("users/login.html", {"request": request, "success": "Login successful!", "form_data": form_data}, status_code=status.HTTP_200_OK)
     response.set_cookie(
@@ -213,6 +249,14 @@ async def login_user(
         secure=True,            # Only send over HTTPS in production
         samesite="lax",         # CSRF protection
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60  # Cookie expires with token
+    )
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,          # Prevents JavaScript access (XSS protection)
+        secure=True,            # Only send over HTTPS in production
+        samesite="lax",         # CSRF protection
+        max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60  # Cookie expires with token
     )
     referer = request.headers.get("Referer")
     if referer:

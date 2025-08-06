@@ -115,6 +115,19 @@
       crossorigin="anonymous"
     ></script>
 
+    <script>
+      // Function to refresh the auth token
+      const interval = window.setInterval(() => {
+        fetch("/auth/token/refresh", {
+          method: "POST",
+          credentials: "same-origin",
+        }).catch((error) => {
+          console.error("Error refreshing token:", error);
+          window.clearInterval(interval);
+        });
+      }, 14 * 60 * 1000); // Refresh every 14 minutes
+    </script>
+
     {% block scripts %}{% endblock %}
   </body>
 </html>
