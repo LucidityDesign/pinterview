@@ -21,8 +21,8 @@ router = APIRouter(
 )
 
 @router.get("/add" , response_class=HTMLResponse)
-def add_question_form(request: Request, _: User = Depends(get_required_current_user)):
-    return templates.TemplateResponse("questions/add.html", {"request": request})
+def add_question_form(request: Request, current_user: User = Depends(get_required_current_user)):
+    return templates.TemplateResponse("questions/add.html", {"request": request, "current_user": current_user})
 
 @router.get("/{item_id}",  response_class=HTMLResponse, name="question")
 def read_question(session: SessionDep, request: Request, item_id: int, current_user: User | None = Depends(get_optional_current_user)):
@@ -48,7 +48,8 @@ def read_question(session: SessionDep, request: Request, item_id: int, current_u
 
     return templates.TemplateResponse("questions/index.html", {
         "request": request,
-        "question": question_public
+        "question": question_public,
+        "current_user": current_user
     })
 
 @router.get("/")

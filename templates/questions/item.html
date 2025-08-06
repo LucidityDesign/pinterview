@@ -34,9 +34,9 @@
     {%- for tag in question.tags %} {% include "tags/item.html" %} {% endfor -%}
   </div>
   <div class="text-sm text-gray-600 mt-2">
-    {% if question.user %} Asked by
+    {% if question.user %} Added by
     <span class="font-medium">{{ question.user.username }}</span> {% else %}
-    Asked by <span class="font-medium">Unknown user</span>
+    Added by <span class="font-medium">Unknown user</span>
     {% endif %}
   </div>
 </div>

@@ -58,8 +58,13 @@
                     >Create Questions</a
                   >
                 </li>
+                {% if not current_user %}
                 <li>
-                  <a class="text-gray-600 hover:text-gray-900" href="#">Tags</a>
+                  <a
+                    class="text-gray-600 hover:text-gray-900"
+                    href="{{ url_for('get_login_page')}}"
+                    >Login</a
+                  >
                 </li>
                 <li>
                   <a
@@ -68,19 +73,21 @@
                     >Register</a
                   >
                 </li>
+                {% else %}
                 <li>
                   <a
-                    class="text-gray-600 hover:text-gray-900"
-                    href="{{ url_for('get_login_page')}}"
-                    >Login</a
+                    class="text-red-600 hover:text-red-900"
+                    href="{{ url_for('logout') }}"
+                    >Logout</a
                   >
                 </li>
+                {% endif %}
               </ul>
               <form class="flex" role="search">
                 <input
                   class="px-3 py-2 border border-gray-300 rounded-l-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   type="search"
-                  placeholder="Search docs"
+                  placeholder="Search"
                   aria-label="Search"
                 />
                 <button
@@ -116,16 +123,25 @@
     ></script>
 
     <script>
-      // Function to refresh the auth token
-      const interval = window.setInterval(() => {
+      let interval;
+      async function refreshAuthToken() {
         fetch("/auth/token/refresh", {
           method: "POST",
           credentials: "same-origin",
         }).catch((error) => {
           console.error("Error refreshing token:", error);
-          window.clearInterval(interval);
+          if (interval) {
+            // Clear the interval if an error occurs
+            window.clearInterval(interval);
+          }
         });
+      }
+      // Function to refresh the auth token
+      interval = window.setInterval(() => {
+        refreshAuthToken();
       }, 14 * 60 * 1000); // Refresh every 14 minutes
+
+      refreshAuthToken();
     </script>
 
     {% block scripts %}{% endblock %}
