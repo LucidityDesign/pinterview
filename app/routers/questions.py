@@ -5,7 +5,7 @@ from fastapi.templating import Jinja2Templates
 from app.models.link_tables import QuestionTagVote
 from app.models.tag import TagPublic
 from app.models.user import User
-from app.routers.authentication import get_required_current_user
+from app.routers.authentication import get_optional_current_user, get_required_current_user
 from app.utils.user_voted import Vote, user_voted
 from ..models import Question, Tag, QuestionPublic, QuestionVote
 from ..db.database import SessionDep
@@ -25,7 +25,7 @@ def add_question_form(request: Request, _: User = Depends(get_required_current_u
     return templates.TemplateResponse("questions/add.html", {"request": request})
 
 @router.get("/{item_id}",  response_class=HTMLResponse, name="question")
-def read_question(session: SessionDep, request: Request, item_id: int):
+def read_question(session: SessionDep, request: Request, item_id: int, current_user: User | None = Depends(get_optional_current_user)):
 
     statement = (
         select(Question, func.sum(QuestionVote.vote_value).label("vote_sum"))
@@ -43,7 +43,7 @@ def read_question(session: SessionDep, request: Request, item_id: int):
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    question_public = QuestionPublic.from_question(question)
+    question_public = QuestionPublic.from_question(question, current_user)
     question_public.vote_sum = vote_sum if vote_sum is not None else 0
 
     return templates.TemplateResponse("questions/index.html", {
