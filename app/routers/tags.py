@@ -3,7 +3,7 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from app.models.user import User
-from app.routers.authentication import get_current_active_user
+from app.routers.authentication import get_required_current_user
 from ..models import Tag, TagPublic, Question, QuestionTagVote
 from ..db.database import SessionDep
 from sqlmodel import func, select
@@ -31,7 +31,7 @@ def list_tags(session: SessionDep, skip: int = 0, limit: int = 5):
     return tags
 
 @router.post("/")
-def create_tag(session: SessionDep, request: Request, name: str = Form(...), question_id: int = Form(...), current_user: User = Depends(get_current_active_user)):
+def create_tag(session: SessionDep, request: Request, name: str = Form(...), question_id: int = Form(...), current_user: User = Depends(get_required_current_user)):
     # First, check if the question exists
     question = session.get(Question, question_id)
     if not question:

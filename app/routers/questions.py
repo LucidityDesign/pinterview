@@ -3,8 +3,10 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.models.link_tables import QuestionTagVote
+from app.models.tag import TagPublic
 from app.models.user import User
-from app.routers.authentication import get_current_active_user
+from app.routers.authentication import get_required_current_user
+from app.utils.user_voted import Vote, user_voted
 from ..models import Question, Tag, QuestionPublic, QuestionVote
 from ..db.database import SessionDep
 from sqlmodel import desc, func, select
@@ -19,7 +21,7 @@ router = APIRouter(
 )
 
 @router.get("/add" , response_class=HTMLResponse)
-def add_question_form(request: Request, _: User = Depends(get_current_active_user)):
+def add_question_form(request: Request, _: User = Depends(get_required_current_user)):
     return templates.TemplateResponse("questions/add.html", {"request": request})
 
 @router.get("/{item_id}",  response_class=HTMLResponse, name="question")
@@ -69,7 +71,7 @@ def list_questions(session: SessionDep,request: Request, skip: int = 0, limit: i
     return templates.TemplateResponse("questions/list.html", {"questions": response, "request": request})
 
 @router.post("/", response_class=RedirectResponse)
-def create_question(session: SessionDep, text: Annotated[str, Form()], current_user: User = Depends(get_current_active_user)):
+def create_question(session: SessionDep, text: Annotated[str, Form()], current_user: User = Depends(get_required_current_user)):
     question = Question(text=text, created_by=current_user.id)
     session.add(question)
     session.commit()
@@ -97,32 +99,32 @@ def add_tag_to_question(session: SessionDep, item_id: int, tag_id: int):
     return question
 
 @router.post("/{item_id}/vote/up", status_code=201, response_model=QuestionPublic)
-def vote_question_up(session: SessionDep, request: Request, item_id: int, current_user: User = Depends(get_current_active_user)):
+def vote_question_up(session: SessionDep, request: Request, item_id: int, current_user: User = Depends(get_required_current_user)):
 
     question = vote_question(session, item_id, 1, current_user)
 
-    return templates.TemplateResponse("votes/item.html", {
+    return templates.TemplateResponse("questions/item.html", {
         "request": request,
-        "vote_sum": question.vote_sum
+        "question": question
     })
 
 @router.post("/{item_id}/vote/down", status_code=201, response_model=QuestionPublic)
-def vote_question_down(session: SessionDep, request: Request, item_id: int, current_user: User = Depends(get_current_active_user)):
+def vote_question_down(session: SessionDep, request: Request, item_id: int, current_user: User = Depends(get_required_current_user)):
     question = vote_question(session, item_id, -1, current_user)
 
-    return templates.TemplateResponse("votes/item.html", {
+    return templates.TemplateResponse("questions/item.html", {
         "request": request,
-        "vote_sum": question.vote_sum
+        "question": question
     })
 
-def vote_question(session: SessionDep, item_id: int, vote_value: int, current_user: User = Depends(get_current_active_user)):
+def vote_question(session: SessionDep, item_id: int, vote_value: int, current_user: User = Depends(get_required_current_user)):
 
     question = session.get(Question, item_id)
 
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
 
-    if has_user_voted(question, current_user):
+    if user_voted(current_user, question) is not Vote.NEUTRAL:
         # remove existing vote if it exists
         existing_vote = session.exec(
             select(QuestionVote)
@@ -136,7 +138,7 @@ def vote_question(session: SessionDep, item_id: int, vote_value: int, current_us
                 select(func.sum(QuestionVote.vote_value))
                 .where(QuestionVote.question_id == item_id)
             ).first() or 0
-            questionPublic = QuestionPublic.from_question(question)
+            questionPublic = QuestionPublic.from_question(question, current_user)
             questionPublic.vote_sum = vote_sum or 0
             return questionPublic
 
@@ -151,7 +153,7 @@ def vote_question(session: SessionDep, item_id: int, vote_value: int, current_us
         .where(QuestionVote.question_id == item_id)
     ).first() or 0
 
-    questionPublic = QuestionPublic.from_question(question)
+    questionPublic = QuestionPublic.from_question(question, current_user)
     questionPublic.vote_sum = vote_sum or 0
 
     return questionPublic
@@ -164,12 +166,13 @@ def vote_question_tag_up(
     request: Request,
     question_id: int,
     tag_id: int,
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_required_current_user)
 ):
-    vote_sum = vote_question_tag(session, question_id, tag_id, 1, current_user)
-    return templates.TemplateResponse("votes/item.html", {
+    question, tag = vote_question_tag(session, question_id, tag_id, 1, current_user)
+    return templates.TemplateResponse("tags/item.html", {
         "request": request,
-        "vote_sum": vote_sum
+        "tag": tag,
+        "question": question
     })
 
 @router.post("/{question_id}/tag/{tag_id}/vote/down", response_class=HTMLResponse)
@@ -178,12 +181,13 @@ def vote_question_tag_down(
     request: Request,
     question_id: int,
     tag_id: int,
-    current_user: User = Depends(get_current_active_user)
+    current_user: User = Depends(get_required_current_user)
 ):
-    vote_sum = vote_question_tag(session, question_id, tag_id, -1, current_user)
-    return templates.TemplateResponse("votes/item.html", {
+    question, tag = vote_question_tag(session, question_id, tag_id, -1, current_user)
+    return templates.TemplateResponse("tags/item.html", {
         "request": request,
-        "vote_sum": vote_sum
+        "tag": tag,
+        "question": question
     })
 
 def vote_question_tag(
@@ -196,13 +200,14 @@ def vote_question_tag(
     # Verify question and tag exist
     question = session.get(Question, question_id)
     tag = session.get(Tag, tag_id)
+    tagPublic = TagPublic.from_tag(tag, question, current_user)
 
     if not question:
         raise HTTPException(status_code=404, detail="Question not found")
     if not tag:
         raise HTTPException(status_code=404, detail="Tag not found")
 
-    if has_user_voted(tag, current_user):
+    if user_voted(current_user, question, tag) is not Vote.NEUTRAL:
         # remove existing vote if it exists
         existing_vote = session.exec(
             select(QuestionTagVote)
@@ -223,7 +228,9 @@ def vote_question_tag(
                     QuestionTagVote.tag_id == tag_id
                 )
             ).first() or 0
-            return vote_sum
+            tagPublic.vote_sum = vote_sum or 0
+            tagPublic.voted = Vote.NEUTRAL
+            return question, tagPublic
 
     # Create vote on this specific question-tag combination
     vote = QuestionTagVote(
@@ -245,15 +252,8 @@ def vote_question_tag(
         )
     ).first() or 0
 
-    return vote_sum
+    tagPublic.voted = Vote(vote_value)
+    tagPublic.vote_sum = vote_sum or 0
 
+    return question, tagPublic
 
-def has_user_voted(resource: Question | Tag, user: User) -> bool:
-    """
-    Check if the user has voted on the given resource (Question or Tag).
-    """
-    if isinstance(resource, Question):
-        return any(vote.user_id == user.id for vote in resource.votes)
-    elif isinstance(resource, Tag):
-        return any(vote.user_id == user.id for vote in resource.question_tag_votes)
-    return False

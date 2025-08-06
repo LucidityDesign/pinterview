@@ -3,6 +3,7 @@ from sqlmodel import SQLModel, Field, Relationship
 
 from app.models.tag import TagPublic
 from app.models.user import User
+from app.utils.user_voted import Vote, user_voted
 
 from .link_tables import QuestionTagLink
 from .vote import QuestionVote
@@ -28,12 +29,15 @@ class QuestionPublic(SQLModel):
     votes: List["QuestionVote"] = []
 
     vote_sum: int = 0
+    voted: Vote = Vote.NEUTRAL  # Indicates if the current user has voted on this question
 
     @classmethod
     def from_question(cls, question: Question, current_user: Optional[User] = None):
         # vote_sum = sum(vote.vote_value for vote in question.votes)
-        tags_public = [TagPublic.from_tag(tag, question.id) for tag in question.tags]
+        tags_public = [TagPublic.from_tag(tag, question, current_user) for tag in question.tags]
         tags_public.sort(key=lambda t: t.vote_sum, reverse=True)
+
+        voted = user_voted(current_user, question)
 
         return cls(
             id=question.id,
@@ -41,6 +45,7 @@ class QuestionPublic(SQLModel):
             created_by=question.created_by,
             user=question.user,
             tags=tags_public,
+            voted=voted,
             # votes=question.votes,
             # vote_sum=vote_sum
         )

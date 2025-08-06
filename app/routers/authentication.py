@@ -47,7 +47,7 @@ class TokenData(BaseModel):
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="auth/token")
+oauth2_scheme = OAuth2PasswordBearerWithCookie(tokenUrl="auth/token", auto_error=False)
 
 app = FastAPI()
 router = APIRouter(
@@ -90,11 +90,7 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
 
 
 async def get_current_user(session: SessionDep, token: Annotated[str, Depends(oauth2_scheme)]):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
+
 
     # Handle case where no token is provided (optional authentication)
     if not token:
@@ -104,23 +100,36 @@ async def get_current_user(session: SessionDep, token: Annotated[str, Depends(oa
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username = payload.get("sub")
         if username is None:
-            raise credentials_exception
+            return None
         token_data = TokenData(username=username)
     except InvalidTokenError:
-        raise credentials_exception
+        return None
     user = get_user(session, username=token_data.username)
     if user is None:
-        raise credentials_exception
+        return None
     return user
 
 
-async def get_current_active_user(
-    current_user: Annotated[User, Depends(get_current_user)],
+async def get_required_current_user(
+    current_user: Annotated[User | None, Depends(get_current_user)],
 ):
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Could not validate credentials",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+    if not current_user:
+        raise credentials_exception
+
     # if current_user.disabled:
     #     raise HTTPException(status_code=400, detail="Inactive user")
     return current_user
 
+async def get_optional_current_user(
+    current_user: Annotated[User | None, Depends(get_current_user)],
+):
+    return current_user
 
 @router.post("/token")
 async def login_for_access_token(
@@ -220,14 +229,14 @@ async def login_user(
 
 @router.get("/users/me/", response_model=UserPublic)
 async def read_users_me(
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_required_current_user)],
 ):
     return current_user
 
 
 @router.get("/users/me/items/")
 async def read_own_items(
-    current_user: Annotated[User, Depends(get_current_active_user)],
+    current_user: Annotated[User, Depends(get_required_current_user)],
 ):
     return [{"item_id": "Foo", "owner": current_user.username}]
 
